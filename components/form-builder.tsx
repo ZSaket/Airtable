@@ -22,6 +22,8 @@ export function FormBuilder({ userId, onSave, editingForm }: FormBuilderProps) {
   const [title, setTitle] = useState(editingForm?.title || "")
   const [description, setDescription] = useState(editingForm?.description || "")
   const [fields, setFields] = useState<FormField[]>(editingForm?.fields || [])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const addField = (type: FormField["type"]) => {
     const newField: FormField = {
@@ -46,25 +48,37 @@ export function FormBuilder({ userId, onSave, editingForm }: FormBuilderProps) {
     setFields(fields.filter((field) => field.id !== fieldId))
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) return
 
-    const form: Form = {
-      id: editingForm?.id || crypto.randomUUID(),
-      userId,
-      title: title.trim(),
-      description: description.trim(),
-      fields,
-      createdAt: editingForm?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
+    setIsLoading(true)
+    setError(null)
 
-    saveForm(form)
-    onSave()
+    try {
+      const form: Form = {
+        id: editingForm?.id || crypto.randomUUID(),
+        userId,
+        title: title.trim(),
+        description: description.trim(),
+        fields,
+        createdAt: editingForm?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+
+      await saveForm(form)
+      onSave()
+    } catch (err) {
+      console.error("Failed to save form:", err)
+      setError("Failed to save form. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>}
+
       <Card>
         <CardHeader>
           <CardTitle>Form Details</CardTitle>
@@ -178,8 +192,8 @@ export function FormBuilder({ userId, onSave, editingForm }: FormBuilderProps) {
         <Button variant="outline" onClick={onSave}>
           Cancel
         </Button>
-        <Button onClick={handleSave} disabled={!title.trim()}>
-          {editingForm ? "Update Form" : "Save Form"}
+        <Button onClick={handleSave} disabled={!title.trim() || isLoading}>
+          {isLoading ? "Saving..." : editingForm ? "Update Form" : "Save Form"}
         </Button>
       </div>
     </div>
